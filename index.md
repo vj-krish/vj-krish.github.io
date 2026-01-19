@@ -2,8 +2,8 @@
 layout: default
 ---
 
-Welcome to my tiny technical blog. I’ll be writing about GPUs, kernels, and experiments here.
+Welcome to my technical blog. I’ll be writing about GPUs, kernels and ML systems here.
 
-## First post
+## Posts
 
-[Hello, world](/2025/12/02/hw.html)
+1. [Blackwell Tensor Core MMA layouts](/2026/01/19/Mma_Layouts.html)

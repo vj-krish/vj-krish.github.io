@@ -1,5 +1,5 @@
 title: "vj-krish"
-description: "Notes on GPUs, systems, and experiments."
+description: "Notes on GPUs, kernels and ML systems."
 remote_theme: pages-themes/hacker@v0.2.0
 plugins:
   - jekyll-remote-theme
