@@ -7,8 +7,8 @@ tags: [Blackwell, Hopper, MMA, layouts]
 
 ## Overview
 
-This post explains shared memory (SMEM) matrix layouts for tcgen05
-MMA instructions.
+This post explains shared memory (SMEM) matrix layouts for [tcgen05
+MMA instructions](https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-mma-instructions).
 
 The main idea is that
 SMEM matrices are partitioned into contiguous "swizzle atoms" built from a smaller
@@ -57,7 +57,7 @@ This is important so you don't get things mixed up as you read the rest of this 
 
 1. MMA atom tiles
 
-   - An MMA atom tile is the tile extent consumed by the MMA instruction. For example, fp16 tcgen05 mma with kM = 128 and kN = 256, has 128x16 as its MMA atom tile for A, and 256x16 as its MMA atom tile for B. It's worth noting that K for dense mma instructions is fixed at 32 bytes (i.e. 16 fp16 elements).
+   - An MMA atom tile is the tile extent consumed by the MMA instruction. For example, fp16 tcgen05 mma instruction with kM = 128 and kN = 256, has (128,16) as its MMA atom tile shape for A, and (256,16) as its MMA atom tile shape for B. It's worth noting that K for dense mma instructions is fixed at 32 bytes (i.e. 16 fp16 elements).
 
    ![MMA Atoms]({{ "/assets/images/TiledMMA.png" | relative_url }})
    _Figure: MMA atom tiles._
@@ -66,7 +66,7 @@ This is important so you don't get things mixed up as you read the rest of this 
 
    - Always 8 x 16B in shape, 8 rows, each 16 bytes wide.
    - In fp16, that is 8 rows x 8 elements per row (16B / 2B).
-   - This also happens to line up with one row of SMEM banks (32 banks x 4B = 128B), i.e a core matrix if stored contiguously in SMEM would result in no bank conflicts. However, using skinny swizzle atoms will result in poor cache utilization. More on this in a future post.
+   - This also happens to line up with one row of SMEM banks (32 banks x 4B = 128B), i.e a core matrix if stored contiguously in SMEM would result in no bank conflicts. However, using skinny swizzle atoms will result in poor cache utilization when loading tiles from DRAM. More on this in a future post.
 
    ![Core Matrix]({{ "/assets/images/CoreMatrix.png" | relative_url }})
    _Figure: Core Matrices in SMEM tile._
