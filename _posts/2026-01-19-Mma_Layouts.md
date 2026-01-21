@@ -180,7 +180,7 @@ Each MMA atom tile has the shape (128,16) and has (16,2) swizzle atoms in no swi
 - LBO = size of swizzle atom (8 \* 8 = 64 elements / 128 bytes)
 
 - SBO = size of swizzle atom \* number of swizzle atoms along K
-  = 8 \* 8 \* 2 = 128 elements / 256 bytes
+  = 8 \* 8 \* 8 = 512 elements / 1024 bytes
 
 ![No swizzle K-major atom example]({{ "/assets/images/Kmajor_Noswizzle.png" | relative_url }})
 _Figure: K-major matrix with Swizzle Atoms in no swizzle mode._
@@ -194,7 +194,7 @@ Each MMA atom is 128x16 and has 16x1 swizzle atoms in 32B swizzle mode, each wit
 - LBO is unused, since K extent for an MMA atom is 32B (16 elements). Hence an MMA atom tile doesn't transcend a swizzle atom along K dim. Naturally, this is also applicable for 64B and 128B swizzle atoms.
 
 - SBO = size of swizzle atom \* number of swizzle atoms along K
-  = 8 \* 16 \* 1 = 128 elements / 256 bytes
+  = 8 \* 16 \* 4 = 512 elements / 1024 bytes
 
 ![32B swizzle K-major atom example]({{ "/assets/images/Kmajor_32BSwizzle.png" | relative_url }})
 _Figure: K-major matrix with 32B Swizzle Atoms._
