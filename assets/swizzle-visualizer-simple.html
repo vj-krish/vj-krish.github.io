@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Swizzle Visualizer (Simple)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #000;
+            color: #eee;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 10px;
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #00d4ff;
+        }
+
+        .control-group .description {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .control-group input, .control-group select {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 2px solid #00d4ff;
+            border-radius: 5px;
+            background: #1a1a2e;
+            color: #fff;
+            width: 120px;
+            text-align: center;
+            -moz-appearance: textfield;
+        }
+
+        .control-group input::-webkit-outer-spin-button,
+        .control-group input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .control-group input:disabled {
+            border-color: #888;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .computed-value {
+            margin-top: 5px;
+            font-size: 11px;
+            color: #00d4ff;
+            text-align: center;
+        }
+
+        .tile-width-info, .computed-info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #00d4ff;
+            text-align: center;
+            width: 100%;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .bank-info {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #00d4ff;
+            text-align: center;
+        }
+
+        .canonical-swizzle {
+            width: 100%;
+            margin-top: 10px;
+            padding: 12px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .canonical-swizzle span {
+            transition: color 0.15s ease;
+        }
+
+        .canonical-swizzle span.highlight {
+            color: #4ade80;
+        }
+
+        .address-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 10px;
+        }
+
+        .address-info h3 {
+            margin-top: 0;
+            color: #00d4ff;
+        }
+
+        .address-hint {
+            color: #888;
+            font-size: 13px;
+        }
+
+        .address-details {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .address-details.visible {
+            display: block;
+        }
+
+        .address-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .address-item {
+            background: #1a1a2e;
+            padding: 10px 15px;
+            border-radius: 5px;
+        }
+
+        .address-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .address-value {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #00d4ff;
+        }
+
+        .address-binary {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            line-height: 1.8;
+        }
+
+        .address-binary .zzz-bits {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .address-binary .yyy-bits {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+
+        .cell {
+            cursor: pointer;
+        }
+
+        .cell:hover {
+            opacity: 0.8;
+        }
+
+        .cell.selected {
+            outline: 3px solid #000;
+            outline-offset: -3px;
+        }
+
+        .constraint-warning {
+            display: none;
+            background: #ff6b6b;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .stat-group {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-group-title {
+            font-size: 12px;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .stat-group-items {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .stat {
+            padding: 5px 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .tile-section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .tile-section h3 {
+            color: #00d4ff;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .tile-description {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .tile-visualization {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tile-container {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .tile-arrow {
+            font-size: 32px;
+            color: #00d4ff;
+        }
+
+        .grid-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .grid-section h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .grid-description {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .bank-section {
+            text-align: center;
+            margin-bottom: 30px;
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .bank-section h3 {
+            color: #00d4ff;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .bank-description {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .bank-view {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .bank-row {
+            display: flex;
+            gap: 1px;
+            align-items: center;
+        }
+
+        .bank-row-label {
+            width: 60px;
+            text-align: right;
+            padding-right: 10px;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .bank-cell {
+            width: 20px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: bold;
+            color: #000;
+            border-radius: 2px;
+        }
+
+        .bank-cell.selected-start {
+            border-left: 2px solid #000;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+        }
+
+        .bank-cell.selected-middle {
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+        }
+
+        .bank-cell.selected-end {
+            border-right: 2px solid #000;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+        }
+
+        .bank-cell.selected-single {
+            outline: 2px solid #000;
+            outline-offset: -2px;
+        }
+
+        .bank-header {
+            display: flex;
+            gap: 1px;
+            margin-left: 70px;
+            margin-bottom: 5px;
+        }
+
+        .bank-header-cell {
+            width: 20px;
+            text-align: center;
+            font-size: 9px;
+            color: #888;
+        }
+
+        .bank-tile-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .bank-tile-box {
+            border: 2px solid #000;
+            border-radius: 4px;
+            padding: 2px;
+            background: #1a1a2e;
+        }
+
+        .bank-tile-label {
+            margin-left: 10px;
+            font-size: 11px;
+            color: #00d4ff;
+            white-space: nowrap;
+        }
+
+        .visualization {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .grid-container {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .grid-title {
+            text-align: center;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .grid-subtitle {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .grid-wrapper {
+            overflow-x: auto;
+        }
+
+        .grid {
+            display: inline-block;
+            border-collapse: collapse;
+        }
+
+        .grid-row {
+            display: flex;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 1px solid #333;
+            transition: all 0.2s;
+        }
+
+        .cell.highlighted {
+            outline: 3px solid #fff;
+            outline-offset: -3px;
+            z-index: 10;
+            position: relative;
+        }
+
+        .row-label {
+            width: 50px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #888;
+            background: #1a1a2e;
+        }
+
+        .col-labels {
+            display: flex;
+            margin-left: 50px;
+            margin-bottom: 5px;
+        }
+
+        .col-label {
+            width: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .legend {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 10px;
+        }
+
+        .legend h3 {
+            margin-top: 0;
+            color: #00d4ff;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+
+        .explanation {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 10px;
+            line-height: 1.6;
+        }
+
+        .explanation h3 {
+            margin-top: 0;
+            color: #00d4ff;
+        }
+
+        .explanation code {
+            background: #1a1a2e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #00d4ff;
+        }
+
+        .tile-separator-v {
+            border-right: 4px solid #000 !important;
+        }
+
+        .tile-separator-h {
+            border-bottom: 4px solid #000 !important;
+        }
+
+        .highlight-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .highlight-control input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+
+        .conflict-check {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .conflict-check.visible {
+            display: block;
+        }
+
+        .conflict-check h3 {
+            margin-top: 0;
+            color: #00d4ff;
+        }
+
+        .conflict-check .result {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .conflict-check .slots {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .conflict-check .slot {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a2e;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .conflict-check .verdict {
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .conflict-check .verdict.success {
+            background: #1fab89;
+            color: #000;
+        }
+
+        .conflict-check .verdict.failure {
+            background: #ff6b6b;
+            color: #000;
+        }
+
+        .formula-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 10px;
+        }
+
+        .formula-box h3 {
+            margin-top: 0;
+            color: #00d4ff;
+        }
+
+        .formula {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .formula .comment {
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <h1>GPU Shared Memory Swizzle Visualizer</h1>
+    <p class="subtitle">Visualize how <code>Swizzle&lt;BBits, MBase, SShift&gt;</code> remaps addresses to avoid bank conflicts</p>
+
+    <div class="controls">
+        <div class="control-section" style="display: flex; flex-direction: column; justify-content: center;">
+            <div class="section-title">Presets</div>
+            <div class="control-row" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                <div class="control-group">
+                    <select id="presets" style="width: 200px;">
+                        <option value="">Custom</option>
+                        <option value="0,4,3">No swizzle atom &lt;0,4,3&gt;</option>
+                        <option value="1,4,3">32B swizzle atom &lt;1,4,3&gt;</option>
+                        <option value="2,4,3">64B swizzle atom &lt;2,4,3&gt;</option>
+                        <option value="3,4,3" selected>128B swizzle atom &lt;3,4,3&gt;</option>
+                        <option value="2,5,2">128B atom, 32B unit &lt;2,5,2&gt;</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="control-section">
+            <div class="section-title">Swizzle Unit</div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>MBase</label>
+                    <div class="description">Unit size = 2^MBase bytes</div>
+                    <input type="number" id="mbase" value="4" min="2" max="6">
+                </div>
+            </div>
+            <div class="computed-info" id="unitSizeInfo"></div>
+        </div>
+        <div class="control-section">
+            <div class="section-title">Swizzle Tile</div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>BBits</label>
+                    <div class="description">Tile = 2^BBits x 2^BBits units</div>
+                    <input type="number" id="bbits" value="3" min="1" max="5">
+                </div>
+            </div>
+            <div class="computed-info" id="tileWidthInfo"></div>
+        </div>
+        <div class="control-section">
+            <div class="section-title">Grid Configuration</div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>SShift</label>
+                    <div class="description">Swz units/grid row = 2^SShift</div>
+                    <input type="number" id="sshift" value="3" min="0" max="6">
+                </div>
+                <div class="control-group">
+                    <label>Grid Rows</label>
+                    <div class="description">Default = tile height</div>
+                    <input type="number" id="displayRows" value="8" min="1" max="32">
+                </div>
+            </div>
+            <div class="control-row" style="margin-top: 10px;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="matchBankWidth" checked="checked">
+                    <span>Match number of SMEM banks (32 DWords / 128B)</span>
+                </label>
+            </div>
+            <div class="bank-info" id="bankInfo"></div>
+        </div>
+        <div class="control-section">
+            <div class="section-title">Inspect</div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Highlight Column</label>
+                    <div class="description">Trace logical column</div>
+                    <select id="highlightCol">
+                        <option value="-1">None</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="canonical-swizzle" id="canonicalSwizzle"></div>
+    </div>
+
+    <div class="constraint-warning" id="constraint-warning"></div>
+    <div class="stats" id="stats"></div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="tile-section">
+        <h3>Single Swizzle Tile</h3>
+        <p class="tile-description">This is one swizzle tile. The grid below is composed of these tiles.</p>
+        <div class="tile-visualization">
+            <div class="tile-container">
+                <div class="grid-title">Tile WITHOUT Swizzle</div>
+                <div class="grid-wrapper" id="tileWrapperNoSwizzle"></div>
+            </div>
+            <div class="tile-arrow">-></div>
+            <div class="tile-container">
+                <div class="grid-title">Tile WITH Swizzle</div>
+                <div class="grid-wrapper" id="tileWrapper"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-section">
+        <h3>Full Grid Layout</h3>
+        <p class="grid-description">The grid is composed of swizzle tiles. Tile boundaries are marked with thick black lines.</p>
+        <div class="visualization">
+            <div class="grid-container">
+                <div class="grid-title">Grid WITHOUT Swizzle</div>
+                <div class="grid-subtitle">Color & number = logical column</div>
+                <div class="grid-wrapper" id="gridWrapperNoSwizzle"></div>
+            </div>
+            <div class="grid-container">
+                <div class="grid-title">Grid WITH Swizzle</div>
+                <div class="grid-subtitle">Color & number = logical column stored at each physical slot</div>
+                <div class="grid-wrapper" id="gridWrapper"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="address-info" id="addressInfo">
+        <h3>Address Inspector</h3>
+        <p class="address-hint">Click any cell in the grids above or SMEM bank organization below to see its address details.</p>
+        <div class="address-details" id="addressDetails"></div>
+    </div>
+
+    <div class="bank-section">
+        <h3>SMEM Bank Organization</h3>
+        <p class="bank-description">Bank-level view of SMEM with standard row-major layout and swizzle applied. Each grid row is stored consecutively in memory. Numbers show logical column stored at each bank position.</p>
+        <div class="bank-view" id="bankView"></div>
+    </div>
+
+    <div class="conflict-check" id="conflictCheck"></div>
+
+    <div class="formula-box">
+        <h3>Swizzle Formula</h3>
+        <div class="formula">
+            <span class="comment">// For swz unit at logical position (row, col):</span><br><br>
+            mask = (1 &lt;&lt; BBits) - 1<br>
+            col_in_tile = col &amp; mask <span class="comment">// col mod 2^BBits</span><br>
+            row_mod = row &amp; mask <span class="comment">// row mod 2^BBits</span><br>
+            swizzled_slot = col_in_tile ^ row_mod<br><br>
+            <span class="comment">// The swizzled slot determines which bank group is accessed.</span><br>
+            <span class="comment">// Looking down any column: all row_mod values are different,</span><br>
+            <span class="comment">// so all swizzled_slot values are different -> no bank conflicts!</span>
+        </div>
+    </div>
+
+    <div class="explanation">
+        <h3>How to Read This Visualization</h3>
+        <p>
+            <strong>Swizzle Tile:</strong> The fundamental swizzle unit (2^BBits x 2^BBits swz units). The swizzle pattern is defined within a tile.
+        </p>
+        <p>
+            <strong>Grid:</strong> The full shared memory layout, composed of one or more swizzle tiles. Tile boundaries are marked with thick black lines.
+        </p>
+        <p>
+            <strong>Colors:</strong> Each color represents a <em>logical column</em>. In the swizzled view, colors show which logical column's data is stored at each physical slot.
+        </p>
+        <p>
+            <strong>WITHOUT Swizzle:</strong> Looking down any column, all cells have the same color -> bank conflict when reading column-major.
+        </p>
+        <p>
+            <strong>WITH Swizzle:</strong> Looking down any column, colors are shuffled -> no bank conflicts, data spread across different logical columns.
+        </p>
+        <p>
+            <strong>To verify:</strong> Use "Highlight Slot" to see which logical columns are accessed when reading a physical slot across rows.
+        </p>
+    </div>
+
+    <script>
+        // Generate colors using golden angle for maximum visual separation
+        // Golden angle (~137.5°) ensures adjacent indices have very different hues
+        function getColor(colIndex, totalCols) {
+            const goldenAngle = 137.508;  // Golden angle in degrees
+            const hue = (colIndex * goldenAngle) % 360;
+            // Vary saturation and lightness slightly for additional distinction
+            const saturation = 60 + (colIndex % 3) * 10;  // 60%, 70%, or 80%
+            const lightness = 55 + (colIndex % 2) * 15;   // 55% or 70%
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+
+        // For tile-only views, use the same color scheme
+        function getTileColor(colInTile, tileCols) {
+            return getColor(colInTile, tileCols);
+        }
+
+        function swizzle(row, col, bbits, sshift) {
+            const mask = (1 << bbits) - 1;
+            const tileIdx = col >> bbits;
+            const colInTile = col & mask;
+            const rowMod = row & mask;
+            const swizzledColInTile = colInTile ^ rowMod;
+            return swizzledColInTile;
+        }
+
+        function render() {
+            const bbits = parseInt(document.getElementById('bbits').value);
+            const mbase = parseInt(document.getElementById('mbase').value);
+            const sshift = parseInt(document.getElementById('sshift').value);
+            const displayRows = parseInt(document.getElementById('displayRows').value);
+            const highlightCol = parseInt(document.getElementById('highlightCol').value);
+
+            const constraintEl = document.getElementById('constraint-warning');
+
+            // Validate MBase >= 2 (swizzle unit must be at least one bank = 4 bytes)
+            if (mbase < 2) {
+                constraintEl.style.display = 'block';
+                constraintEl.innerHTML = `
+                    <strong>Invalid Configuration</strong><br><br>
+                    <strong>Problem:</strong> Swizzle unit size (${1 << mbase} bytes) is smaller than one SMEM bank (4 bytes).<br><br>
+                    <strong>Why:</strong> Swizzle unit must be at least one bank (4 bytes / 1 DWord) in size.<br><br>
+                    <strong>Fix:</strong> Set MBase >= 2 (unit size >= 4 bytes).
+                `;
+
+                // Clear all visualizations
+                document.getElementById('stats').innerHTML = '';
+                document.getElementById('gridWrapper').innerHTML = '';
+                document.getElementById('gridWrapperNoSwizzle').innerHTML = '';
+                document.getElementById('tileWrapper').innerHTML = '';
+                document.getElementById('tileWrapperNoSwizzle').innerHTML = '';
+                document.getElementById('legend').innerHTML = '';
+                document.getElementById('bankView').innerHTML = '';
+                document.getElementById('conflictCheck').classList.remove('visible');
+                return;
+            }
+
+            // Validate sshift >= bbits
+            if (sshift < bbits) {
+                const tileWidth = 1 << bbits;
+                const unitsPerRow = 1 << sshift;
+
+                constraintEl.style.display = 'block';
+                constraintEl.innerHTML = `
+                    <strong>Invalid Configuration</strong><br><br>
+                    <strong>Problem:</strong> Row width (${unitsPerRow} swz units) is smaller than tile width (${tileWidth} swz units).<br><br>
+                    <strong>Why:</strong> A ${tileWidth}x${tileWidth} swizzle tile cannot fit in a row that's only ${unitsPerRow} swz units wide.<br><br>
+                    <strong>Fix:</strong> Either reduce BBits to <=${sshift} (smaller tile), or increase SShift to >=${bbits} (wider rows).
+                `;
+
+                document.getElementById('stats').innerHTML = '';
+                document.getElementById('gridWrapper').innerHTML = '';
+                document.getElementById('gridWrapperNoSwizzle').innerHTML = '';
+                document.getElementById('tileWrapper').innerHTML = '';
+                document.getElementById('tileWrapperNoSwizzle').innerHTML = '';
+                document.getElementById('legend').innerHTML = '';
+                document.getElementById('bankView').innerHTML = '';
+                document.getElementById('conflictCheck').classList.remove('visible');
+                return;
+            }
+
+            constraintEl.style.display = 'none';
+
+            const tileRows = 1 << bbits;
+            const tileCols = 1 << bbits;
+            const unitsPerRow = 1 << sshift;
+            const unitSize = 1 << mbase;
+            const tilesPerRow = 1 << (sshift - bbits);
+            const rowWidth = unitsPerRow * unitSize;
+            const tileSize = tileCols * tileRows * unitSize;
+            const numTileRows = Math.ceil(displayRows / tileRows);
+            const totalColors = numTileRows * unitsPerRow;  // unique color per column per tile
+
+            currentConfig = { bbits, mbase, sshift, numTileRows, tileRows, tileCols, unitsPerRow, tilesPerRow };
+
+            const numBanks = unitSize / 4;
+            document.getElementById('unitSizeInfo').textContent = `= ${unitSize} bytes (${numBanks} banks)`;
+
+            const tileWidthBytes = tileCols * unitSize;
+            document.getElementById('tileWidthInfo').innerHTML = `Tile width = ${tileWidthBytes}B<br>Tile height = ${tileRows} rows`;
+
+            document.getElementById('canonicalSwizzle').innerHTML = `Swizzle&lt;<span id="swz-bbits">${bbits}</span>, <span id="swz-mbase">${mbase}</span>, <span id="swz-sshift">${sshift}</span>&gt;`;
+
+            const activeEl = document.activeElement;
+            if (activeEl && activeEl.id === 'bbits') {
+                document.getElementById('swz-bbits').classList.add('highlight');
+            } else if (activeEl && activeEl.id === 'mbase') {
+                document.getElementById('swz-mbase').classList.add('highlight');
+            } else if (activeEl && activeEl.id === 'sshift') {
+                document.getElementById('swz-sshift').classList.add('highlight');
+            }
+
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-group">
+                    <div class="stat-group-title">Swizzle Unit</div>
+                    <div class="stat-group-items">
+                        <div class="stat">
+                            <div class="stat-value">${unitSize}B</div>
+                            <div class="stat-label">Size</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-group">
+                    <div class="stat-group-title">Tile</div>
+                    <div class="stat-group-items">
+                        <div class="stat">
+                            <div class="stat-value">${tileRows}x${tileCols}</div>
+                            <div class="stat-label">Rows x Units</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${tileSize}B</div>
+                            <div class="stat-label">Size</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-group">
+                    <div class="stat-group-title">Grid</div>
+                    <div class="stat-group-items">
+                        <div class="stat">
+                            <div class="stat-value">${displayRows}x${unitsPerRow}</div>
+                            <div class="stat-label">Rows x Units</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${tilesPerRow}</div>
+                            <div class="stat-label">Tiles/Row</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${rowWidth}B</div>
+                            <div class="stat-label">Row Width</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const highlightSelect = document.getElementById('highlightCol');
+            const currentHighlight = highlightSelect.value;
+            highlightSelect.innerHTML = '<option value="-1">None</option>';
+            for (let c = 0; c < tileCols; c++) {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = `Col ${c}`;
+                opt.style.color = getColor(c, totalColors);
+                highlightSelect.appendChild(opt);
+            }
+            highlightSelect.value = currentHighlight < tileCols ? currentHighlight : -1;
+
+            // Build swizzled grid
+            let html = '';
+            html += '<div class="col-labels">';
+            for (let c = 0; c < unitsPerRow; c++) {
+                html += `<div class="col-label">${c}</div>`;
+            }
+            html += '</div>';
+
+            const mask = (1 << bbits) - 1;
+            for (let r = 0; r < displayRows; r++) {
+                html += '<div class="grid-row">';
+                html += `<div class="row-label">Row ${r}</div>`;
+
+                for (let physicalSlot = 0; physicalSlot < unitsPerRow; physicalSlot++) {
+                    const physicalSlotInTile = physicalSlot & mask;
+                    const rowMod = r & mask;
+                    const logicalColInTile = physicalSlotInTile ^ rowMod;
+
+                    const tileColIdx = physicalSlot >> bbits;
+                    const tileRowIdx = r >> bbits;
+                    const fullLogicalCol = (tileColIdx << bbits) | logicalColInTile;
+                    const colorIndex = tileRowIdx * unitsPerRow + fullLogicalCol;
+                    const color = getColor(colorIndex, totalColors);
+                    const textColor = '#000';
+
+                    let classes = 'cell';
+                    if ((physicalSlot + 1) % tileCols === 0 && physicalSlot < unitsPerRow - 1) {
+                        classes += ' tile-separator-v';
+                    }
+                    if ((r + 1) % tileRows === 0 && r < displayRows - 1) {
+                        classes += ' tile-separator-h';
+                    }
+                    const selectedLogicalCol = parseInt(highlightSelect.value);
+                    if (selectedLogicalCol >= 0 && logicalColInTile === selectedLogicalCol) {
+                        classes += ' highlighted';
+                    }
+                    html += `<div class="${classes}" style="background: ${color}; color: ${textColor};"
+                             data-row="${r}" data-physical-col="${physicalSlot}" data-logical-col="${fullLogicalCol}"
+                             onclick="showAddressDetails(${r}, ${fullLogicalCol}, true)"
+                             title="Physical slot ${physicalSlot} <- Logical col ${logicalColInTile}">${logicalColInTile}</div>`;
+                }
+
+                html += '</div>';
+            }
+
+            document.getElementById('gridWrapper').innerHTML = html;
+
+            // Build non-swizzled grid
+            let htmlNoSwizzle = '';
+            htmlNoSwizzle += '<div class="col-labels">';
+            for (let c = 0; c < unitsPerRow; c++) {
+                htmlNoSwizzle += `<div class="col-label">${c}</div>`;
+            }
+            htmlNoSwizzle += '</div>';
+
+            for (let r = 0; r < displayRows; r++) {
+                htmlNoSwizzle += '<div class="grid-row">';
+                htmlNoSwizzle += `<div class="row-label">Row ${r}</div>`;
+
+                for (let c = 0; c < unitsPerRow; c++) {
+                    const colInTile = c & ((1 << bbits) - 1);
+                    const tileRowIdx = r >> bbits;
+                    const colorIndex = tileRowIdx * unitsPerRow + c;
+                    const color = getColor(colorIndex, totalColors);
+                    const textColor = '#000';
+
+                    let classes = 'cell';
+                    if ((c + 1) % tileCols === 0 && c < unitsPerRow - 1) {
+                        classes += ' tile-separator-v';
+                    }
+                    if ((r + 1) % tileRows === 0 && r < displayRows - 1) {
+                        classes += ' tile-separator-h';
+                    }
+                    const selectedLogicalCol = parseInt(highlightSelect.value);
+                    if (selectedLogicalCol >= 0 && colInTile === selectedLogicalCol) {
+                        classes += ' highlighted';
+                    }
+
+                    htmlNoSwizzle += `<div class="${classes}" style="background: ${color}; color: ${textColor};"
+                             data-row="${r}" data-logical-col="${c}" data-physical-col="${c}"
+                             onclick="showAddressDetails(${r}, ${c}, false)"
+                             title="Row ${r}, Col ${c} -> Logical col ${colInTile}">${colInTile}</div>`;
+                }
+
+                htmlNoSwizzle += '</div>';
+            }
+
+            document.getElementById('gridWrapperNoSwizzle').innerHTML = htmlNoSwizzle;
+
+            // Build tile visualizations
+            let tileHtmlNoSwizzle = '';
+            tileHtmlNoSwizzle += '<div class="col-labels">';
+            for (let c = 0; c < tileCols; c++) {
+                tileHtmlNoSwizzle += `<div class="col-label">${c}</div>`;
+            }
+            tileHtmlNoSwizzle += '</div>';
+
+            for (let r = 0; r < tileRows; r++) {
+                tileHtmlNoSwizzle += '<div class="grid-row">';
+                tileHtmlNoSwizzle += `<div class="row-label">Row ${r}</div>`;
+                for (let c = 0; c < tileCols; c++) {
+                    const color = getColor(c, totalColors);
+                    tileHtmlNoSwizzle += `<div class="cell" style="background: ${color}; color: #000;"
+                                          data-row="${r}" data-logical-col="${c}"
+                                          onclick="showAddressDetails(${r}, ${c}, false)">${c}</div>`;
+                }
+                tileHtmlNoSwizzle += '</div>';
+            }
+            document.getElementById('tileWrapperNoSwizzle').innerHTML = tileHtmlNoSwizzle;
+
+            let tileHtml = '';
+            tileHtml += '<div class="col-labels">';
+            for (let c = 0; c < tileCols; c++) {
+                tileHtml += `<div class="col-label">${c}</div>`;
+            }
+            tileHtml += '</div>';
+
+            for (let r = 0; r < tileRows; r++) {
+                tileHtml += '<div class="grid-row">';
+                tileHtml += `<div class="row-label">Row ${r}</div>`;
+                for (let physicalSlot = 0; physicalSlot < tileCols; physicalSlot++) {
+                    const rowMod = r & mask;
+                    const logicalCol = physicalSlot ^ rowMod;
+                    const color = getColor(logicalCol, totalColors);
+                    tileHtml += `<div class="cell" style="background: ${color}; color: #000;"
+                                 data-row="${r}" data-logical-col="${logicalCol}"
+                                 onclick="showAddressDetails(${r}, ${logicalCol}, true)"
+                                 title="Physical slot ${physicalSlot} <- Logical col ${logicalCol}">${logicalCol}</div>`;
+                }
+                tileHtml += '</div>';
+            }
+            document.getElementById('tileWrapper').innerHTML = tileHtml;
+
+            // Build legend - show first tile's columns only (colors vary by tile)
+            let legendHtml = '<h3>Logical Column Colors (first tile)</h3><div class="legend-items">';
+            for (let c = 0; c < tileCols; c++) {
+                const color = getColor(c, totalColors);
+                legendHtml += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: ${color};"></div>
+                        <span>Col ${c}</span>
+                    </div>
+                `;
+            }
+            legendHtml += '</div>';
+            document.getElementById('legend').innerHTML = legendHtml;
+
+            // Build SMEM bank view - standard row-major layout with swizzle applied
+            const totalBanks = 32;
+            const banksPerUnit = unitSize / 4;
+            const smemRowBytesCalc = 128;  // 32 banks * 4 bytes
+            const unitsPerSmemRow = smemRowBytesCalc / unitSize;
+
+            let bankHtml = '';
+
+            // Calculate how many SMEM rows we need per grid row
+            const smemRowsPerGridRow = Math.ceil(unitsPerRow / unitsPerSmemRow);
+
+            // Header row with bank numbers
+            bankHtml += '<div class="bank-header">';
+            for (let b = 0; b < totalBanks; b++) {
+                bankHtml += `<div class="bank-header-cell">${b}</div>`;
+            }
+            bankHtml += '</div>';
+
+            // Iterate row by row (standard row-major layout)
+            for (let gridRow = 0; gridRow < displayRows; gridRow++) {
+                const tileRowIdx = gridRow >> bbits;
+                const rowInTile = gridRow & mask;
+
+                // For each grid row, show SMEM row(s) it occupies
+                for (let subRow = 0; subRow < smemRowsPerGridRow; subRow++) {
+                    const smemRowIdx = gridRow * smemRowsPerGridRow + subRow;
+
+                    bankHtml += '<div class="bank-row">';
+                    bankHtml += `<div class="bank-row-label">Row ${gridRow}${smemRowsPerGridRow > 1 ? '.' + subRow : ''}</div>`;
+
+                    for (let bank = 0; bank < totalBanks; bank++) {
+                        // Calculate which physical slot this bank corresponds to
+                        const unitInSmemRow = Math.floor(bank / banksPerUnit);
+                        const physicalSlot = subRow * unitsPerSmemRow + unitInSmemRow;
+
+                        if (physicalSlot >= unitsPerRow) {
+                            bankHtml += `<div class="bank-cell" style="background: #222; opacity: 0.3;"></div>`;
+                            continue;
+                        }
+
+                        // Inverse swizzle: physical slot -> logical column
+                        const physicalSlotInTile = physicalSlot & mask;
+                        const rowMod = gridRow & mask;
+                        const logicalColInTile = physicalSlotInTile ^ rowMod;
+                        const tileColIdx = physicalSlot >> bbits;
+                        const logicalCol = (tileColIdx << bbits) | logicalColInTile;
+
+                        const bankOffsetInUnit = bank % banksPerUnit;
+                        const dwordOffset = bankOffsetInUnit * 4;
+
+                        const colorIndex = tileRowIdx * unitsPerRow + logicalCol;
+                        const color = getColor(colorIndex, totalColors);
+                        bankHtml += `<div class="bank-cell" style="background: ${color}; cursor: pointer;"
+                                     data-smem-row="${smemRowIdx}" data-bank="${bank}" data-grid-row="${gridRow}"
+                                     onclick="showAddressDetails(${gridRow}, ${logicalCol}, true, ${dwordOffset}, ${smemRowIdx}, ${bank})"
+                                     title="Row ${gridRow}, Col ${logicalCol}">${logicalColInTile}</div>`;
+                    }
+                    bankHtml += '</div>';
+                }
+            }
+
+            document.getElementById('bankView').innerHTML = bankHtml;
+
+            // Update conflict check section
+            const conflictCheckEl = document.getElementById('conflictCheck');
+            const selectedCol = parseInt(highlightSelect.value);
+
+            if (selectedCol >= 0) {
+                conflictCheckEl.classList.add('visible');
+
+                const tileHeight = 1 << bbits;
+                const rowsInOneTile = Math.min(displayRows, tileHeight);
+                const logicalCol = selectedCol;
+                const selectedColColor = getColor(selectedCol, totalColors);
+
+                const physicalSlotsNoSwizzle = [];
+                for (let r = 0; r < rowsInOneTile; r++) {
+                    physicalSlotsNoSwizzle.push(logicalCol);
+                }
+
+                const physicalSlotsSwizzle = [];
+                for (let r = 0; r < rowsInOneTile; r++) {
+                    const rowMod = r & ((1 << bbits) - 1);
+                    physicalSlotsSwizzle.push(logicalCol ^ rowMod);
+                }
+                const uniqueSwizzle = new Set(physicalSlotsSwizzle);
+                const allDifferentSwizzle = uniqueSwizzle.size === physicalSlotsSwizzle.length;
+
+                let conflictHtml = `
+                    <h3>Column ${logicalCol} - Physical slot mapping</h3>
+                    <p style="color: #888; margin-bottom: 15px;">Tracing column ${logicalCol} across ${rowsInOneTile} rows (one tile height):</p>
+
+                    <div class="result" style="margin-bottom: 15px;">
+                        <div style="min-width: 120px;"><strong>WITHOUT swizzle:</strong></div>
+                        <div class="slots">
+                            ${physicalSlotsNoSwizzle.map((slot, i) => `<div class="slot" style="background: ${selectedColColor}; color: #000;">
+                                <span title="Row ${i}">Slot ${slot}</span>
+                            </div>`).join('')}
+                        </div>
+                        <div class="verdict failure">
+                            ALL SAME SLOT -> ${rowsInOneTile}-WAY BANK CONFLICT!
+                        </div>
+                    </div>
+
+                    <div class="result">
+                        <div style="min-width: 120px;"><strong>WITH swizzle:</strong></div>
+                        <div class="slots">
+                            ${physicalSlotsSwizzle.map((slot, i) => `<div class="slot" style="background: ${selectedColColor}; color: #000;">
+                                <span title="Row ${i}">Slot ${slot}</span>
+                            </div>`).join('')}
+                        </div>
+                        <div class="verdict ${allDifferentSwizzle ? 'success' : 'failure'}">
+                            ${allDifferentSwizzle ? 'ALL DIFFERENT SLOTS -> No bank conflicts!' : 'Some duplicates'}
+                        </div>
+                    </div>
+                `;
+
+                conflictCheckEl.innerHTML = conflictHtml;
+            } else {
+                conflictCheckEl.classList.remove('visible');
+            }
+        }
+
+        let currentConfig = {};
+
+        function showAddressDetails(row, logicalCol, isSwizzledGrid, dwordOffset = 0, smemRow = null, bank = null) {
+            const { bbits, mbase, sshift, numTileRows, tileRows, tileCols, unitsPerRow } = currentConfig;
+            const mask = (1 << bbits) - 1;
+            const unitSize = 1 << mbase;
+            const rowStride = unitsPerRow * unitSize;
+
+            // Calculate tile and position within tile
+            const tileColIdx = logicalCol >> bbits;
+            const tileRowIdx = row >> bbits;
+            const logicalColInTile = logicalCol & mask;
+            const rowMod = row & mask;
+
+            // Original address (without swizzle): standard row-major layout
+            const originalAddr = row * rowStride + logicalCol * unitSize + dwordOffset;
+
+            // Swizzled address: apply swizzle to column within tile
+            const physicalSlotInTile = logicalColInTile ^ rowMod;
+            const physicalCol = (tileColIdx << bbits) | physicalSlotInTile;
+            const swizzledAddr = row * rowStride + physicalCol * unitSize + dwordOffset;
+
+            function formatBinary(addr, highlightZZZ, highlightYYY) {
+                const totalBits = Math.max(12, mbase + sshift + bbits + 4);
+                let binary = addr.toString(2).padStart(totalBits, '0');
+                let result = '';
+
+                for (let i = 0; i < binary.length; i++) {
+                    const bitPos = binary.length - 1 - i;
+                    const bit = binary[i];
+
+                    if (highlightYYY && bitPos >= mbase + sshift && bitPos < mbase + sshift + bbits) {
+                        result += `<span class="yyy-bits">${bit}</span>`;
+                    } else if (highlightZZZ && bitPos >= mbase && bitPos < mbase + bbits) {
+                        result += `<span class="zzz-bits">${bit}</span>`;
+                    } else {
+                        result += bit;
+                    }
+
+                    if (bitPos > 0 && bitPos % 4 === 0) {
+                        result += ' ';
+                    }
+                }
+                return result;
+            }
+
+            // Calculate physical bank ID based on swizzled address
+            const smemRowBytes = 32 * 4;  // 32 banks * 4 bytes
+            const physicalBankId = Math.floor((swizzledAddr % smemRowBytes) / 4);
+
+            const showByteOffset = typeof smemRow === 'number' || dwordOffset > 0;
+            const dwordOffsetHtml = showByteOffset ? `
+                    <div class="address-item">
+                        <div class="address-label">Byte Offset</div>
+                        <div class="address-value">+${dwordOffset} bytes (Bank ${physicalBankId})</div>
+                    </div>` : '';
+
+            const detailsEl = document.getElementById('addressDetails');
+            detailsEl.classList.add('visible');
+            detailsEl.innerHTML = `
+                <div class="address-row">
+                    <div class="address-item">
+                        <div class="address-label">Grid Position</div>
+                        <div class="address-value">Row ${row}, Col ${logicalCol}</div>
+                    </div>
+                    <div class="address-item">
+                        <div class="address-label">Logical Column (in tile)</div>
+                        <div class="address-value">${logicalColInTile}</div>
+                    </div>
+                    <div class="address-item">
+                        <div class="address-label">Row mod 2^BBits</div>
+                        <div class="address-value">${rowMod}</div>
+                    </div>
+                    <div class="address-item">
+                        <div class="address-label">Physical Slot (in tile)</div>
+                        <div class="address-value">${logicalColInTile} XOR ${rowMod} = ${physicalSlotInTile}</div>
+                    </div>
+                    ${dwordOffsetHtml}
+                </div>
+                <div class="address-row">
+                    <div class="address-item">
+                        <div class="address-label">Original Address (no swizzle)</div>
+                        <div class="address-value">${originalAddr} (0x${originalAddr.toString(16).toUpperCase()})</div>
+                    </div>
+                    <div class="address-item">
+                        <div class="address-label">Swizzled Address</div>
+                        <div class="address-value">${swizzledAddr} (0x${swizzledAddr.toString(16).toUpperCase()})</div>
+                    </div>
+                </div>
+                <div class="address-binary">
+                    <strong>Binary breakdown:</strong><br>
+                    <span style="color: #888;">Original:  </span>${formatBinary(originalAddr, true, true)}<br>
+                    <span style="color: #888;">Swizzled:  </span>${formatBinary(swizzledAddr, true, true)}<br>
+                    <br>
+                    <span class="zzz-bits">ZZZ bits</span> (positions ${mbase}-${mbase + bbits - 1}): modified by swizzle<br>
+                    <span class="yyy-bits">YYY bits</span> (positions ${mbase + sshift}-${mbase + sshift + bbits - 1}): XOR source (row bits)
+                </div>
+            `;
+
+            // Highlight cells
+            document.querySelectorAll('.cell.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.bank-cell.selected-start, .bank-cell.selected-middle, .bank-cell.selected-end, .bank-cell.selected-single').forEach(el => {
+                el.classList.remove('selected-start', 'selected-middle', 'selected-end', 'selected-single');
+            });
+
+            document.querySelectorAll(`[data-row="${row}"][data-logical-col="${logicalCol}"]`).forEach(el => {
+                el.classList.add('selected');
+            });
+
+            // Highlight corresponding bank cells in SMEM organization
+            // Standard row-major layout with swizzle applied
+            const totalBanksHighlight = 32;
+            const banksPerUnitHighlight = unitSize / 4;
+            const bytesPerSmemRowHighlight = 128;
+            const unitsPerSmemRowHighlight = bytesPerSmemRowHighlight / unitSize;
+            const smemRowsPerGridRow = Math.ceil(unitsPerRow / unitsPerSmemRowHighlight);
+
+            // physicalCol is already calculated above
+            const subRow = Math.floor(physicalCol / unitsPerSmemRowHighlight);
+            const posInSubRow = physicalCol % unitsPerSmemRowHighlight;
+            const smemRowHighlight = row * smemRowsPerGridRow + subRow;
+            const startBankCol = posInSubRow * banksPerUnitHighlight;
+
+            if (banksPerUnitHighlight === 1) {
+                document.querySelectorAll(`[data-smem-row="${smemRowHighlight}"][data-bank="${startBankCol}"]`).forEach(el => {
+                    el.classList.add('selected-single');
+                });
+            } else {
+                for (let i = 0; i < banksPerUnitHighlight; i++) {
+                    const bankCol = startBankCol + i;
+                    let className;
+                    if (i === 0) {
+                        className = 'selected-start';
+                    } else if (i === banksPerUnitHighlight - 1) {
+                        className = 'selected-end';
+                    } else {
+                        className = 'selected-middle';
+                    }
+                    document.querySelectorAll(`[data-smem-row="${smemRowHighlight}"][data-bank="${bankCol}"]`).forEach(el => {
+                        el.classList.add(className);
+                    });
+                }
+            }
+        }
+
+        function calcBankMatchSShift(mbase) {
+            return Math.max(0, 7 - mbase);
+        }
+
+        function updateBankMatch() {
+            const matchCheckbox = document.getElementById('matchBankWidth');
+            const mbase = parseInt(document.getElementById('mbase').value);
+            const sshiftInput = document.getElementById('sshift');
+            const bankInfo = document.getElementById('bankInfo');
+
+            if (matchCheckbox.checked) {
+                const newSShift = calcBankMatchSShift(mbase);
+                sshiftInput.value = newSShift;
+                sshiftInput.disabled = true;
+                const unitSize = 1 << mbase;
+                const unitsPerRow = 1 << newSShift;
+                const rowBytes = unitSize * unitsPerRow;
+                bankInfo.innerHTML = `Row = ${unitsPerRow} swz units x ${unitSize}B = ${rowBytes}B (32 banks x 4B)`;
+            } else {
+                sshiftInput.disabled = false;
+                bankInfo.innerHTML = '';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('bbits').addEventListener('input', function() {
+            const newBbits = parseInt(this.value);
+            const tileSize = 1 << newBbits;
+            document.getElementById('displayRows').value = tileSize;
+            render();
+        });
+
+        document.getElementById('mbase').addEventListener('input', function() {
+            updateBankMatch();
+            render();
+        });
+
+        document.getElementById('sshift').addEventListener('input', function() {
+            document.getElementById('matchBankWidth').checked = false;
+            updateBankMatch();
+            render();
+        });
+
+        document.getElementById('matchBankWidth').addEventListener('change', function() {
+            updateBankMatch();
+            render();
+        });
+
+        document.getElementById('displayRows').addEventListener('input', render);
+        document.getElementById('highlightCol').addEventListener('change', render);
+
+        document.getElementById('presets').addEventListener('change', function() {
+            const value = this.value;
+            if (value) {
+                const [bbits, mbase, sshift] = value.split(',').map(Number);
+                document.getElementById('bbits').value = bbits;
+                document.getElementById('mbase').value = mbase;
+                document.getElementById('sshift').value = sshift;
+                document.getElementById('displayRows').value = 8;
+                document.getElementById('matchBankWidth').checked = false;
+                updateBankMatch();
+                render();
+            }
+        });
+
+        function resetPresetToCustom() {
+            document.getElementById('presets').value = '';
+        }
+        document.getElementById('bbits').addEventListener('input', resetPresetToCustom);
+        document.getElementById('mbase').addEventListener('input', resetPresetToCustom);
+        document.getElementById('sshift').addEventListener('input', resetPresetToCustom);
+
+        function highlightSwizzleParam(paramId) {
+            document.querySelectorAll('.canonical-swizzle span').forEach(el => el.classList.remove('highlight'));
+            const el = document.getElementById(paramId);
+            if (el) el.classList.add('highlight');
+        }
+
+        function clearSwizzleHighlight() {
+            document.querySelectorAll('.canonical-swizzle span').forEach(el => el.classList.remove('highlight'));
+        }
+
+        document.getElementById('bbits').addEventListener('focus', () => highlightSwizzleParam('swz-bbits'));
+        document.getElementById('bbits').addEventListener('blur', clearSwizzleHighlight);
+        document.getElementById('mbase').addEventListener('focus', () => highlightSwizzleParam('swz-mbase'));
+        document.getElementById('mbase').addEventListener('blur', clearSwizzleHighlight);
+        document.getElementById('sshift').addEventListener('focus', () => highlightSwizzleParam('swz-sshift'));
+        document.getElementById('sshift').addEventListener('blur', clearSwizzleHighlight);
+
+        function init() {
+            updateBankMatch();
+            render();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
